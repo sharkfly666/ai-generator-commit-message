@@ -65,11 +65,19 @@ src/main/java/com/github/jdami/aicommit/
 ├── actions/
 │   └── GenerateCommitMessageAction.java    # 生成 commit message 的动作
 ├── service/
-│   └── OllamaService.java                   # Ollama API 客户端
+│   ├── AiService.java                       # Provider 路由/门面
+│   ├── provider/                            # 各模型厂商实现
+│   │   ├── OllamaProviderClient.java
+│   │   └── OpenAiProviderClient.java
+│   ├── model/
+│   │   └── GenerationInputs.java            # 请求入参
+│   └── util/
+│       ├── CommitMessageCleaner.java        # 响应清洗
+│       └── PromptBuilder.java               # Prompt 构造
 ├── settings/
-│   ├── OllamaSettingsState.java            # 设置持久化
-│   ├── OllamaSettingsConfigurable.java     # 设置配置器
-│   └── OllamaSettingsComponent.java        # 设置 UI 组件
+│   ├── AiSettingsState.java                # 设置持久化
+│   ├── AiSettingsConfigurable.java         # 设置配置器
+│   └── AiSettingsComponent.java            # 设置 UI 组件
 └── vcs/
     └── CommitMessageGeneratorCheckinHandlerFactory.java  # VCS 集成
 ```

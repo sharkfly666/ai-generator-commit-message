@@ -5,14 +5,14 @@
 
     <description><![CDATA[
     <h1>AI Commit Message Generator</h1>
-    <p>Automatically generate commit messages using Ollama AI based on your code changes.</p>
+    <p>Automatically generate commit messages using Ollama or OpenAI based on your code changes.</p>
     
     <h2>Features</h2>
     <ul>
         <li>Add a button in the commit dialog to generate commit messages</li>
         <li>Analyze staged changes and generate meaningful commit messages</li>
-        <li>Customizable Ollama service endpoint</li>
-        <li>Support for custom AI models</li>
+        <li>Customizable Ollama/OpenAI endpoints, models, and (for OpenAI) API Key</li>
+        <li>Provider switch in Settings for different model vendors</li>
     </ul>
     
     <h2>Usage</h2>
@@ -42,12 +42,12 @@
         <!-- Settings -->
         <applicationConfigurable 
             parentId="tools" 
-            instance="com.github.jdami.aicommit.settings.OllamaSettingsConfigurable"
-            id="com.github.jdami.aicommit.settings.OllamaSettingsConfigurable"
+            instance="com.github.jdami.aicommit.settings.AiSettingsConfigurable"
+            id="com.github.jdami.aicommit.settings.AiSettingsConfigurable"
             displayName="AI Commit Message Generator"/>
         
         <applicationService 
-            serviceImplementation="com.github.jdami.aicommit.settings.OllamaSettingsState"/>
+            serviceImplementation="com.github.jdami.aicommit.settings.AiSettingsState"/>
         
         <!-- VCS Check-in Handler Factory -->
         <checkinHandlerFactory 

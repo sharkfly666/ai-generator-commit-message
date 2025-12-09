@@ -1,6 +1,6 @@
 package com.github.jdami.aicommit.actions;
 
-import com.github.jdami.aicommit.service.OllamaService;
+import com.github.jdami.aicommit.service.AiService;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
 import com.intellij.openapi.application.ApplicationManager;
@@ -26,17 +26,17 @@ import java.util.Collection;
  */
 public class GenerateCommitMessageAction extends AnAction {
 
-    private OllamaService ollamaService;
+    private AiService aiService;
     private volatile boolean isGenerating;
     private volatile boolean wasCancelled;
     private volatile ProgressIndicator currentIndicator;
     private final Object stateLock = new Object();
 
-    private OllamaService getOllamaService() {
-        if (ollamaService == null) {
-            ollamaService = new OllamaService();
+    private AiService getAiService() {
+        if (aiService == null) {
+            aiService = new AiService();
         }
-        return ollamaService;
+        return aiService;
     }
 
     @Override
@@ -69,7 +69,7 @@ public class GenerateCommitMessageAction extends AnAction {
         }
 
         // Generate diff content in background
-        ProgressManager.getInstance().run(new Task.Backgroundable(project, "Generating Commit Message...", true) {
+        ProgressManager.getInstance().run(new Task.Backgroundable(project, "Generating commit message...", true) {
             private String generatedMessage;
 
             @Override
@@ -90,12 +90,12 @@ public class GenerateCommitMessageAction extends AnAction {
                         return;
                     }
 
-                    indicator.setText("Calling Ollama service...");
+                    indicator.setText("Calling Ai service...");
                     indicator.setFraction(0.6);
                     indicator.checkCanceled();
 
-                    // Call Ollama service
-                    generatedMessage = getOllamaService().generateCommitMessage(diffContent, indicator);
+                    // Call Ai service
+                    generatedMessage = getAiService().generateCommitMessage(diffContent, indicator);
 
                     indicator.setFraction(1.0);
 
@@ -176,16 +176,16 @@ public class GenerateCommitMessageAction extends AnAction {
                         fileDiff = executeGitDiff(repoPath, "diff", "--cached", "--", relativePath);
 
                         // Try 2: Unstaged changes (git diff)
-                        if (fileDiff == null || fileDiff.isEmpty()) {
+                        if (fileDiff.isEmpty()) {
                             fileDiff = executeGitDiff(repoPath, "diff", "--", relativePath);
                         }
 
                         // Try 3: Compare with HEAD (for new/untracked files or modified files)
-                        if (fileDiff == null || fileDiff.isEmpty()) {
+                        if (fileDiff.isEmpty()) {
                             fileDiff = executeGitDiff(repoPath, "diff", "HEAD", "--", relativePath);
                         }
 
-                        if (fileDiff != null && !fileDiff.isEmpty()) {
+                        if (!fileDiff.isEmpty()) {
                             diffBuilder.append(fileDiff);
                         } else {
                             System.err.println("No diff found for file: " + relativePath);
@@ -268,7 +268,7 @@ public class GenerateCommitMessageAction extends AnAction {
             isGenerating = false;
             currentIndicator = null;
         }
-        getOllamaService().cancelOngoingCall();
+        getAiService().cancelOngoingCall();
     }
 
     private void cancelGeneration() {
@@ -281,6 +281,6 @@ public class GenerateCommitMessageAction extends AnAction {
             }
             wasCancelled = true;
         }
-        getOllamaService().cancelOngoingCall();
+        getAiService().cancelOngoingCall();
     }
 }

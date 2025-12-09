@@ -1,6 +1,6 @@
 package com.github.jdami.aicommit.startup;
 
-import com.github.jdami.aicommit.settings.OllamaSettingsState;
+import com.github.jdami.aicommit.settings.AiSettingsState;
 import com.intellij.ide.plugins.IdeaPluginDescriptor;
 import com.intellij.ide.plugins.PluginManagerCore;
 import com.intellij.openapi.extensions.PluginId;
@@ -23,7 +23,7 @@ public class PluginUpdateActivity implements StartupActivity {
         }
 
         String currentVersion = plugin.getVersion();
-        OllamaSettingsState settings = OllamaSettingsState.getInstance();
+        AiSettingsState settings = AiSettingsState.getInstance();
 
         // If version changed or not set, reset settings to defaults
         if (!currentVersion.equals(settings.pluginVersion)) {

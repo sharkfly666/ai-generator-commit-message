@@ -1,6 +1,8 @@
 package com.github.jdami.aicommit.settings;
 
-import com.github.jdami.aicommit.settings.OllamaSettingsState.Provider;
+import com.github.jdami.aicommit.settings.AiSettingsState;
+import com.github.jdami.aicommit.settings.AiSettingsState.Provider;
+import com.github.jdami.aicommit.settings.model.ProviderSettings;
 import com.intellij.openapi.options.Configurable;
 import com.intellij.openapi.options.ConfigurationException;
 import com.intellij.openapi.util.NlsContexts;
@@ -9,11 +11,11 @@ import org.jetbrains.annotations.Nullable;
 import javax.swing.*;
 
 /**
- * Configurable for Ollama settings UI
+ * Configurable for AI provider settings UI.
  */
-public class OllamaSettingsConfigurable implements Configurable {
+public class AiSettingsConfigurable implements Configurable {
 
-    private OllamaSettingsComponent settingsComponent;
+    private AiSettingsComponent settingsComponent;
 
     @Override
     public @NlsContexts.ConfigurableName String getDisplayName() {
@@ -22,7 +24,7 @@ public class OllamaSettingsConfigurable implements Configurable {
 
     @Override
     public @Nullable JComponent createComponent() {
-        settingsComponent = new OllamaSettingsComponent();
+        settingsComponent = new AiSettingsComponent();
         // Load current settings into UI
         reset();
         return settingsComponent.getPanel();
@@ -34,7 +36,7 @@ public class OllamaSettingsConfigurable implements Configurable {
             return false;
         }
         
-        OllamaSettingsState settings = OllamaSettingsState.getInstance();
+        AiSettingsState settings = AiSettingsState.getInstance();
         
         Provider currentProvider = settingsComponent.getProvider();
         String currentEndpoint = settingsComponent.getOllamaEndpoint();
@@ -46,11 +48,11 @@ public class OllamaSettingsConfigurable implements Configurable {
         String currentSystemPrompt = settingsComponent.getSystemPrompt();
         
         return currentProvider != settings.provider
-                || !currentEndpoint.equals(settings.ollamaEndpoint)
-                || !currentOllamaModel.equals(settings.ollamaModel)
-                || !currentOpenAiEndpoint.equals(settings.openAiEndpoint)
-                || !currentOpenAiModel.equals(settings.openAiModel)
-                || !currentOpenAiApiKey.equals(settings.openAiApiKey)
+                || !currentEndpoint.equals(settings.providers.ollama.endpoint)
+                || !currentOllamaModel.equals(settings.providers.ollama.model)
+                || !currentOpenAiEndpoint.equals(settings.providers.openAi.endpoint)
+                || !currentOpenAiModel.equals(settings.providers.openAi.model)
+                || !currentOpenAiApiKey.equals(settings.providers.openAi.apiKey)
                 || currentTimeout != settings.timeout
                 || !currentSystemPrompt.equals(settings.systemPrompt);
     }
@@ -61,7 +63,7 @@ public class OllamaSettingsConfigurable implements Configurable {
             return;
         }
         
-        OllamaSettingsState settings = OllamaSettingsState.getInstance();
+        AiSettingsState settings = AiSettingsState.getInstance();
         
         // Validate inputs
         Provider provider = settingsComponent.getProvider();
@@ -96,9 +98,17 @@ public class OllamaSettingsConfigurable implements Configurable {
         
         // Apply settings
         settings.provider = provider != null ? provider : Provider.OLLAMA;
+        ProviderSettings providers = settings.providers != null ? settings.providers : new ProviderSettings();
+        providers.ollama.endpoint = endpoint;
+        providers.ollama.model = ollamaModel;
+        providers.openAi.endpoint = openAiEndpoint;
+        providers.openAi.model = openAiModel;
+        providers.openAi.apiKey = openAiApiKey;
+        settings.providers = providers;
+        // legacy fields
         settings.ollamaEndpoint = endpoint;
         settings.ollamaModel = ollamaModel;
-        settings.modelName = ollamaModel; // legacy field update
+        settings.modelName = ollamaModel;
         settings.openAiEndpoint = openAiEndpoint;
         settings.openAiModel = openAiModel;
         settings.openAiApiKey = openAiApiKey;
@@ -115,20 +125,26 @@ public class OllamaSettingsConfigurable implements Configurable {
             return;
         }
         
-        OllamaSettingsState settings = OllamaSettingsState.getInstance();
+        AiSettingsState settings = AiSettingsState.getInstance();
         settingsComponent.setProvider(settings.provider != null ? settings.provider : Provider.OLLAMA);
-        settingsComponent.setOllamaEndpoint(settings.ollamaEndpoint != null ? settings.ollamaEndpoint : "http://localhost:11434");
-        settingsComponent.setOllamaModel(settings.ollamaModel != null ? settings.ollamaModel : "qwen3:8b");
-        settingsComponent.setOpenAiEndpoint(settings.openAiEndpoint != null ? settings.openAiEndpoint : "https://api.openai.com");
-        settingsComponent.setOpenAiModel(settings.openAiModel != null ? settings.openAiModel : "gpt-4o-mini");
-        settingsComponent.setOpenAiApiKey(settings.openAiApiKey != null ? settings.openAiApiKey : "");
+        ProviderSettings providers = settings.providers != null ? settings.providers : new ProviderSettings();
+        settingsComponent.setOllamaEndpoint(providers.ollama != null && providers.ollama.endpoint != null
+                ? providers.ollama.endpoint : "http://localhost:11434");
+        settingsComponent.setOllamaModel(providers.ollama != null && providers.ollama.model != null
+                ? providers.ollama.model : "qwen3:8b");
+        settingsComponent.setOpenAiEndpoint(providers.openAi != null && providers.openAi.endpoint != null
+                ? providers.openAi.endpoint : "https://api.openai.com");
+        settingsComponent.setOpenAiModel(providers.openAi != null && providers.openAi.model != null
+                ? providers.openAi.model : "gpt-4o-mini");
+        settingsComponent.setOpenAiApiKey(providers.openAi != null && providers.openAi.apiKey != null
+                ? providers.openAi.apiKey : "");
         settingsComponent.setTimeout(settings.timeout);
         settingsComponent.setSystemPrompt(settings.systemPrompt != null ? settings.systemPrompt : getDefaultSystemPrompt());
     }
     
     private String getDefaultSystemPrompt() {
         // Create a new instance to get the default value
-        OllamaSettingsState defaultState = new OllamaSettingsState();
+        AiSettingsState defaultState = new AiSettingsState();
         return defaultState.systemPrompt;
     }
 

@@ -1,6 +1,7 @@
 package com.github.jdami.aicommit.settings;
 
-import com.github.jdami.aicommit.settings.OllamaSettingsState.Provider;
+import com.github.jdami.aicommit.settings.AiSettingsState.Provider;
+import com.github.jdami.aicommit.settings.model.ProviderSettings;
 import com.intellij.ui.components.JBLabel;
 import com.intellij.ui.components.JBPasswordField;
 import com.intellij.ui.components.JBTextField;
@@ -13,7 +14,7 @@ import java.awt.*;
 /**
  * UI component for Ollama settings
  */
-public class OllamaSettingsComponent {
+public class AiSettingsComponent {
 
     private final JPanel mainPanel;
     private final JComboBox<Provider> providerCombo = new JComboBox<>(Provider.values());
@@ -26,7 +27,7 @@ public class OllamaSettingsComponent {
     private final JSpinner timeoutSpinner = new JSpinner(new SpinnerNumberModel(30, 5, 300, 5));
     private final JTextArea systemPromptArea = new JTextArea(5, 40);
 
-    public OllamaSettingsComponent() {
+    public AiSettingsComponent() {
         systemPromptArea.setLineWrap(true);
         systemPromptArea.setWrapStyleWord(true);
         JScrollPane scrollPane = new JScrollPane(systemPromptArea);
@@ -77,6 +78,17 @@ public class OllamaSettingsComponent {
     public void setProvider(Provider provider) {
         providerCombo.setSelectedItem(provider);
         switchProviderCard();
+    }
+
+    public void setProviders(ProviderSettings providers) {
+        if (providers == null) {
+            return;
+        }
+        setOllamaEndpoint(providers.ollama != null ? providers.ollama.endpoint : "");
+        setOllamaModel(providers.ollama != null ? providers.ollama.model : "");
+        setOpenAiEndpoint(providers.openAi != null ? providers.openAi.endpoint : "");
+        setOpenAiModel(providers.openAi != null ? providers.openAi.model : "");
+        setOpenAiApiKey(providers.openAi != null ? providers.openAi.apiKey : "");
     }
 
     public void setOllamaEndpoint(String endpoint) {

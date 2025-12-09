@@ -1,5 +1,8 @@
 package com.github.jdami.aicommit.settings;
 
+import com.github.jdami.aicommit.settings.model.OllamaConfig;
+import com.github.jdami.aicommit.settings.model.OpenAiConfig;
+import com.github.jdami.aicommit.settings.model.ProviderSettings;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.components.PersistentStateComponent;
 import com.intellij.openapi.components.State;
@@ -11,8 +14,8 @@ import org.jetbrains.annotations.Nullable;
 /**
  * Persistent state for Ollama settings
  */
-@State(name = "com.github.jdami.aicommit.settings.OllamaSettingsState", storages = @Storage("OllamaSettings.xml"))
-public class OllamaSettingsState implements PersistentStateComponent<OllamaSettingsState> {
+@State(name = "com.github.jdami.aicommit.settings.AiSettingsState", storages = @Storage("OllamaSettings.xml"))
+public class AiSettingsState implements PersistentStateComponent<AiSettingsState> {
 
     public enum Provider {
         OLLAMA,
@@ -21,13 +24,20 @@ public class OllamaSettingsState implements PersistentStateComponent<OllamaSetti
 
     public Provider provider = Provider.OLLAMA;
 
-    public String ollamaEndpoint = "http://localhost:11434";
-    public String ollamaModel = "qwen3:8b";
-    // Deprecated legacy field kept for migration compatibility
-    public String modelName = "qwen3:8b";
+    public ProviderSettings providers = new ProviderSettings();
 
+    // Deprecated legacy fields kept for migration compatibility
+    @Deprecated
+    public String ollamaEndpoint = "http://localhost:11434";
+    @Deprecated
+    public String ollamaModel = "qwen3:8b";
+    @Deprecated
+    public String modelName = "qwen3:8b";
+    @Deprecated
     public String openAiEndpoint = "https://api.openai.com";
+    @Deprecated
     public String openAiApiKey = "";
+    @Deprecated
     public String openAiModel = "gpt-4o-mini";
 
     public int timeout = 30;
@@ -64,22 +74,21 @@ public class OllamaSettingsState implements PersistentStateComponent<OllamaSetti
 
     public String pluginVersion = "";
 
-    public static OllamaSettingsState getInstance() {
-        return ApplicationManager.getApplication().getService(OllamaSettingsState.class);
+    public static AiSettingsState getInstance() {
+        return ApplicationManager.getApplication().getService(AiSettingsState.class);
     }
 
     @Nullable
     @Override
-    public OllamaSettingsState getState() {
+    public AiSettingsState getState() {
         return this;
     }
 
     @Override
-    public void loadState(@NotNull OllamaSettingsState state) {
+    public void loadState(@NotNull AiSettingsState state) {
         XmlSerializerUtil.copyBean(state, this);
-        if (this.ollamaModel == null || this.ollamaModel.isEmpty()) {
-            this.ollamaModel = this.modelName;
-        }
+        migrateLegacyFields();
+        ensureDefaults();
     }
 
     /**
@@ -87,12 +96,14 @@ public class OllamaSettingsState implements PersistentStateComponent<OllamaSetti
      */
     public void resetToDefaults() {
         this.provider = Provider.OLLAMA;
-        this.ollamaEndpoint = "http://localhost:11434";
-        this.ollamaModel = "qwen3:8b";
-        this.modelName = "qwen3:8b";
-        this.openAiEndpoint = "https://api.openai.com";
-        this.openAiApiKey = "";
-        this.openAiModel = "gpt-4o-mini";
+        this.providers = new ProviderSettings();
+        // keep legacy defaults for compatibility
+        this.ollamaEndpoint = this.providers.ollama.endpoint;
+        this.ollamaModel = this.providers.ollama.model;
+        this.modelName = this.providers.ollama.model;
+        this.openAiEndpoint = this.providers.openAi.endpoint;
+        this.openAiApiKey = this.providers.openAi.apiKey;
+        this.openAiModel = this.providers.openAi.model;
         this.timeout = 30;
         this.systemPrompt = "CRITICAL: You are a commit message generator. You MUST output ONLY the commit message in the exact format below. NO explanations, NO analysis, NO extra text, NO markdown.\n\n"
                 +
@@ -124,5 +135,54 @@ public class OllamaSettingsState implements PersistentStateComponent<OllamaSetti
                 "- Any explanation or commentary\n" +
                 "- Markdown formatting\n\n" +
                 "START YOUR RESPONSE IMMEDIATELY WITH: type(scope):";
+    }
+
+    private void migrateLegacyFields() {
+        if (providers == null) {
+            providers = new ProviderSettings();
+        }
+        if (providers.ollama == null) {
+            providers.ollama = new OllamaConfig();
+        }
+        if (providers.openAi == null) {
+            providers.openAi = new OpenAiConfig();
+        }
+
+        if (ollamaEndpoint != null && !ollamaEndpoint.isEmpty()) {
+            providers.ollama.endpoint = ollamaEndpoint;
+        }
+        if (ollamaModel != null && !ollamaModel.isEmpty()) {
+            providers.ollama.model = ollamaModel;
+        } else if (modelName != null && !modelName.isEmpty()) {
+            providers.ollama.model = modelName;
+        }
+
+        if (openAiEndpoint != null && !openAiEndpoint.isEmpty()) {
+            providers.openAi.endpoint = openAiEndpoint;
+        }
+        if (openAiModel != null && !openAiModel.isEmpty()) {
+            providers.openAi.model = openAiModel;
+        }
+        if (openAiApiKey != null && !openAiApiKey.isEmpty()) {
+            providers.openAi.apiKey = openAiApiKey;
+        }
+    }
+
+    private void ensureDefaults() {
+        if (providers.ollama.endpoint == null || providers.ollama.endpoint.isEmpty()) {
+            providers.ollama.endpoint = "http://localhost:11434";
+        }
+        if (providers.ollama.model == null || providers.ollama.model.isEmpty()) {
+            providers.ollama.model = "qwen3:8b";
+        }
+        if (providers.openAi.endpoint == null || providers.openAi.endpoint.isEmpty()) {
+            providers.openAi.endpoint = "https://api.openai.com";
+        }
+        if (providers.openAi.model == null || providers.openAi.model.isEmpty()) {
+            providers.openAi.model = "gpt-4o-mini";
+        }
+        if (providers.openAi.apiKey == null) {
+            providers.openAi.apiKey = "";
+        }
     }
 }
