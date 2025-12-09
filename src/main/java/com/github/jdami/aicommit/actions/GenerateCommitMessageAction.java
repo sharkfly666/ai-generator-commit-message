@@ -7,12 +7,14 @@ import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.progress.ProgressIndicator;
 import com.intellij.openapi.progress.ProgressManager;
 import com.intellij.openapi.progress.Task;
+import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.Messages;
 import com.intellij.openapi.vcs.CheckinProjectPanel;
 import com.intellij.openapi.vcs.CommitMessageI;
 import com.intellij.openapi.vcs.changes.Change;
 import com.intellij.openapi.vcs.ui.Refreshable;
+import com.intellij.openapi.util.IconLoader;
 import git4idea.GitUtil;
 import git4idea.repo.GitRepository;
 import org.jetbrains.annotations.NotNull;
@@ -25,6 +27,10 @@ import java.util.Collection;
 public class GenerateCommitMessageAction extends AnAction {
 
     private OllamaService ollamaService;
+    private volatile boolean isGenerating;
+    private volatile boolean wasCancelled;
+    private volatile ProgressIndicator currentIndicator;
+    private final Object stateLock = new Object();
 
     private OllamaService getOllamaService() {
         if (ollamaService == null) {
@@ -37,6 +43,11 @@ public class GenerateCommitMessageAction extends AnAction {
     public void actionPerformed(@NotNull AnActionEvent e) {
         Project project = e.getProject();
         if (project == null) {
+            return;
+        }
+
+        if (isGenerating) {
+            cancelGeneration();
             return;
         }
 
@@ -63,10 +74,12 @@ public class GenerateCommitMessageAction extends AnAction {
 
             @Override
             public void run(@NotNull ProgressIndicator indicator) {
+                markGenerating(indicator);
                 try {
                     indicator.setText("Analyzing changes...");
                     indicator.setIndeterminate(false);
                     indicator.setFraction(0.3);
+                    indicator.checkCanceled();
 
                     // Get diff content
                     String diffContent = getDiffContent(project, changes);
@@ -79,12 +92,16 @@ public class GenerateCommitMessageAction extends AnAction {
 
                     indicator.setText("Calling Ollama service...");
                     indicator.setFraction(0.6);
+                    indicator.checkCanceled();
 
                     // Call Ollama service
-                    generatedMessage = getOllamaService().generateCommitMessage(diffContent);
+                    generatedMessage = getOllamaService().generateCommitMessage(diffContent, indicator);
 
                     indicator.setFraction(1.0);
 
+                } catch (ProcessCanceledException canceled) {
+                    wasCancelled = true;
+                    System.out.println("Commit message generation canceled by user.");
                 } catch (Exception ex) {
                     ApplicationManager.getApplication().invokeLater(() -> Messages.showErrorDialog(project,
                             "Failed to generate commit message: " + ex.getMessage(),
@@ -94,10 +111,21 @@ public class GenerateCommitMessageAction extends AnAction {
 
             @Override
             public void onSuccess() {
-                if (generatedMessage != null && !generatedMessage.isEmpty()) {
+                if (generatedMessage != null && !generatedMessage.isEmpty() && !wasCancelled) {
                     ApplicationManager.getApplication()
                             .invokeLater(() -> commitMessageI.setCommitMessage(generatedMessage));
                 }
+            }
+
+            @Override
+            public void onCancel() {
+                wasCancelled = true;
+                System.out.println("Commit message generation canceled.");
+            }
+
+            @Override
+            public void onFinished() {
+                markIdle();
             }
         });
     }
@@ -220,5 +248,39 @@ public class GenerateCommitMessageAction extends AnAction {
     public void update(@NotNull AnActionEvent e) {
         Project project = e.getProject();
         e.getPresentation().setEnabledAndVisible(project != null);
+        e.getPresentation().setIcon(IconLoader.getIcon(
+                isGenerating ? "/icons/aiCommitStop.svg" : "/icons/aiCommit.svg",
+                GenerateCommitMessageAction.class));
+        e.getPresentation().setText(isGenerating ? "停止生成" : "Git助手");
+        e.getPresentation().setDescription(isGenerating ? "停止生成 commit message" : "Generate commit message using AI");
+    }
+
+    private void markGenerating(ProgressIndicator indicator) {
+        synchronized (stateLock) {
+            isGenerating = true;
+            wasCancelled = false;
+            currentIndicator = indicator;
+        }
+    }
+
+    private void markIdle() {
+        synchronized (stateLock) {
+            isGenerating = false;
+            currentIndicator = null;
+        }
+        getOllamaService().cancelOngoingCall();
+    }
+
+    private void cancelGeneration() {
+        synchronized (stateLock) {
+            if (!isGenerating) {
+                return;
+            }
+            if (currentIndicator != null) {
+                currentIndicator.cancel();
+            }
+            wasCancelled = true;
+        }
+        getOllamaService().cancelOngoingCall();
     }
 }

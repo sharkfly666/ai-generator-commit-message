@@ -3,8 +3,16 @@ package com.github.jdami.aicommit.service;
 import com.github.jdami.aicommit.settings.OllamaSettingsState;
 import com.google.gson.Gson;
 import com.google.gson.JsonObject;
-import okhttp3.*;
+import com.intellij.openapi.progress.ProcessCanceledException;
+import com.intellij.openapi.progress.ProgressIndicator;
+import okhttp3.Call;
+import okhttp3.MediaType;
+import okhttp3.OkHttpClient;
+import okhttp3.Request;
+import okhttp3.RequestBody;
+import okhttp3.Response;
 import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
@@ -16,6 +24,14 @@ public class OllamaService {
 
     private static final MediaType JSON = MediaType.get("application/json; charset=utf-8");
     private final Gson gson = new Gson();
+    private volatile Call ongoingCall;
+
+    public void cancelOngoingCall() {
+        Call call = ongoingCall;
+        if (call != null) {
+            call.cancel();
+        }
+    }
 
     /**
      * Generate commit message based on diff content
@@ -25,6 +41,13 @@ public class OllamaService {
      * @throws IOException if request fails
      */
     public String generateCommitMessage(@NotNull String diffContent) throws IOException {
+        return generateCommitMessage(diffContent, null);
+    }
+
+    /**
+     * Generate commit message with optional progress indicator for cancellation support
+     */
+    public String generateCommitMessage(@NotNull String diffContent, @Nullable ProgressIndicator indicator) throws IOException {
         OllamaSettingsState settings = OllamaSettingsState.getInstance();
 
         OkHttpClient client = new OkHttpClient.Builder()
@@ -60,37 +83,58 @@ public class OllamaService {
                 .post(body)
                 .build();
 
-        try (Response response = client.newCall(request).execute()) {
-            if (!response.isSuccessful()) {
-                String errorMsg = "Unexpected response code: " + response;
-                System.err.println("Ollama Error: " + errorMsg);
-                throw new IOException(errorMsg);
+        Call call = client.newCall(request);
+        ongoingCall = call;
+
+        try {
+            if (indicator != null && indicator.isCanceled()) {
+                throw new ProcessCanceledException();
             }
 
-            String responseBody = response.body().string();
-            System.out.println("=== Ollama Response ===");
-            System.out.println("Raw Response: " + responseBody);
+            try (Response response = call.execute()) {
+                if (indicator != null && indicator.isCanceled()) {
+                    throw new ProcessCanceledException();
+                }
+                if (!response.isSuccessful()) {
+                    String errorMsg = "Unexpected response code: " + response;
+                    System.err.println("Ollama Error: " + errorMsg);
+                    throw new IOException(errorMsg);
+                }
 
-            JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
+                String responseBody = response.body().string();
+                System.out.println("=== Ollama Response ===");
+                System.out.println("Raw Response: " + responseBody);
 
-            if (jsonResponse.has("response")) {
-                String rawResponse = jsonResponse.get("response").getAsString().trim();
-                System.out.println("Raw Message: " + rawResponse);
+                JsonObject jsonResponse = gson.fromJson(responseBody, JsonObject.class);
 
-                // Remove <think>...</think> tags and their content
-                String cleanedResponse = removeThinkTags(rawResponse);
-                
-                // Post-process to extract only the commit message
-                String finalMessage = extractCommitMessage(cleanedResponse);
-                System.out.println("Final Message: " + finalMessage);
-                System.out.println("======================");
+                if (jsonResponse.has("response")) {
+                    String rawResponse = jsonResponse.get("response").getAsString().trim();
+                    System.out.println("Raw Message: " + rawResponse);
 
-                return finalMessage;
-            } else {
-                String errorMsg = "Invalid response format from Ollama";
-                System.err.println("Ollama Error: " + errorMsg);
-                throw new IOException(errorMsg);
+                    // Remove <think>...</think> tags and their content
+                    String cleanedResponse = removeThinkTags(rawResponse);
+                    
+                    // Post-process to extract only the commit message
+                    String finalMessage = extractCommitMessage(cleanedResponse);
+                    System.out.println("Final Message: " + finalMessage);
+                    System.out.println("======================");
+
+                    return finalMessage;
+                } else {
+                    String errorMsg = "Invalid response format from Ollama";
+                    System.err.println("Ollama Error: " + errorMsg);
+                    throw new IOException(errorMsg);
+                }
             }
+        } catch (ProcessCanceledException canceled) {
+            throw canceled;
+        } catch (IOException ex) {
+            if (indicator != null && indicator.isCanceled()) {
+                throw new ProcessCanceledException();
+            }
+            throw ex;
+        } finally {
+            ongoingCall = null;
         }
     }
 
