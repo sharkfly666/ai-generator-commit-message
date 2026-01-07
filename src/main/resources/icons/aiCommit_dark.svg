@@ -1,36 +1,35 @@
-<svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
-        <radialGradient id="grad20" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+        <radialGradient id="grad16" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
             <stop offset="0%" style="stop-color:#4B0082;stop-opacity:1" />
             <stop offset="100%" style="stop-color:#1a0b2e;stop-opacity:1" />
         </radialGradient>
     </defs>
 
     <!-- Background Circle -->
-    <circle cx="10" cy="10" r="9" fill="url(#grad20)" stroke="#8A2BE2" stroke-width="0.5"/>
+    <circle cx="8" cy="8" r="7.5" fill="url(#grad16)" stroke="#8A2BE2" stroke-width="0.5"/>
 
-    <!-- Neural Git Graph -->
+    <!-- Simplified Neural Git Graph -->
     <g stroke-linecap="round" stroke-linejoin="round">
         <!-- Main Branch -->
-        <path d="M7 14 C 7 10, 13 10, 13 6" stroke="#00FF7F" stroke-width="1"/>
-        <path d="M7 6 L 7 14" stroke="#00BFFF" stroke-width="1"/>
+        <path d="M6 12 C 6 9, 10 9, 10 5" stroke="#00FF7F" stroke-width="1"/>
+        <path d="M6 5 L 6 12" stroke="#00BFFF" stroke-width="1"/>
         
-        <!-- Radiating Connections -->
-        <path d="M13 11 L 16 13" stroke="#DA70D6" stroke-width="0.8"/>
-        <path d="M7 8 L 4 7" stroke="#DA70D6" stroke-width="0.8"/>
-        <path d="M10 6 L 12 4" stroke="#00FF7F" stroke-width="0.8"/>
+        <!-- Radiating Connections (Simplified) -->
+        <path d="M10 9 L 12.5 10.5" stroke="#DA70D6" stroke-width="0.8"/>
+        <path d="M6 7 L 3.5 6" stroke="#DA70D6" stroke-width="0.8"/>
+        <path d="M8 5 L 10 3" stroke="#00FF7F" stroke-width="0.8"/>
     </g>
 
-    <!-- Nodes -->
+    <!-- Significant Nodes -->
     <g fill="#FFFFFF">
-        <!-- Main Nodes -->
-        <circle cx="7" cy="14" r="1.2" fill="#00BFFF"/>
-        <circle cx="13" cy="6" r="1.2" fill="#00FF7F"/>
-        <circle cx="7" cy="6" r="1" fill="#00BFFF"/>
+        <circle cx="6" cy="12" r="1.2" fill="#00BFFF"/>
+        <circle cx="10" cy="5" r="1.2" fill="#00FF7F"/>
+        <circle cx="6" cy="5" r="1" fill="#00BFFF"/>
         
-        <!-- Satellite Nodes -->
-        <circle cx="16" cy="13" r="0.8" fill="#DA70D6"/>
-        <circle cx="4" cy="7" r="0.8" fill="#DA70D6"/>
-        <circle cx="12" cy="4" r="0.8" fill="#00FF7F"/>
+        <!-- Tiny Nodes -->
+        <circle cx="12.5" cy="10.5" r="0.8" fill="#DA70D6"/>
+        <circle cx="3.5" cy="6" r="0.8" fill="#DA70D6"/>
+        <circle cx="10" cy="3" r="0.8" fill="#00FF7F"/>
     </g>
 </svg>
