@@ -281,6 +281,11 @@ public class GenerateCommitMessageAction extends AnAction {
         int exitCode = process.waitFor();
         System.out.println("Exit code: " + exitCode + ", Output length: " + output.length());
 
+        if (exitCode != 0) {
+            System.err.println("Git command failed: " + output.toString());
+            return "";
+        }
+
         return output.toString();
     }
 
