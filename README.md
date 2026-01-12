@@ -81,7 +81,7 @@ You can customize the system prompt to match your team's commit message conventi
 1. **Make code changes** in your project
 2. **Open the commit dialog** (`Ctrl+K` / `Cmd+K`)
 3. **Select the changes** you want to commit
-4. **Click the "Git助手" button** in the toolbar (AI icon)
+4. **Click the "Commit助手" button** in the toolbar (AI icon)
 5. **Wait for AI generation** (you can click again to cancel)
 6. **Review and edit** the generated commit message if needed
 7. **Commit your changes**
@@ -297,7 +297,7 @@ cd ai-generator-commit-message
 1. **修改代码**
 2. **打开提交对话框**（`Ctrl+K` / `Cmd+K`）
 3. **选择要提交的变更**
-4. **点击工具栏中的"Git助手"按钮**（AI 图标）
+4. **点击工具栏中的"Commit助手"按钮**（AI 图标）
 5. **等待 AI 生成**（可再次点击取消）
 6. **检查并编辑**生成的提交信息（如需要）
 7. **提交代码**

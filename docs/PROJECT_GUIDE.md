@@ -12,7 +12,7 @@
 - 设置页（`Settings/Tools/AI Commit Message Generator`）提供 UI 配置，插件升级时自动重置为新的默认值。
 
 ## 运行流程（提交侧）
-1. 用户在提交对话框选择变更并点击“Git助手”按钮。
+1. 用户在提交对话框选择变更并点击“Commit助手”按钮。
 2. `GenerateCommitMessageAction` 在后台任务中调用 `git diff` 生成合并后的 diff 文本。
 3. `AiService` 构建 prompt 并将请求分发到对应 Provider 客户端（Ollama/OpenAI）。
 4. Provider 使用 OkHttp 请求其 API，解析响应并清洗后写入提交信息文本框，用户可直接提交或二次编辑。
