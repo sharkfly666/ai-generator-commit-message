@@ -25,13 +25,24 @@ jobs:
         run: chmod +x gradlew
       
       - name: Build plugin
-        run: ./gradlew buildPlugin
+        run: ./gradlew buildPlugin --stacktrace
+      
+      - name: Verify plugin build
+        run: |
+          echo "Checking build output..."
+          ls -lh build/distributions/
+          PLUGIN_FILE=$(ls build/distributions/*.zip 2>/dev/null | head -n 1)
+          if [ -z "$PLUGIN_FILE" ]; then
+            echo "Error: Plugin ZIP file not found!"
+            exit 1
+          fi
+          echo "Plugin built successfully: $PLUGIN_FILE"
       
       - name: Run tests
-        run: ./gradlew test
+        run: ./gradlew test --stacktrace
       
       - name: Verify plugin
-        run: ./gradlew verifyPlugin
+        run: ./gradlew verifyPlugin --stacktrace
       
       - name: Upload plugin artifact
         uses: actions/upload-artifact@v4
@@ -39,3 +50,5 @@ jobs:
           name: plugin-artifact
           path: build/distributions/*.zip
           retention-days: 30
+          if-no-files-found: error
+

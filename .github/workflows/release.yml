@@ -30,7 +30,16 @@ jobs:
         run: chmod +x gradlew
       
       - name: Build plugin
-        run: ./gradlew buildPlugin
+        run: ./gradlew buildPlugin --stacktrace
+      
+      - name: Verify plugin build
+        run: |
+          echo "Checking build output..."
+          ls -lh build/distributions/
+          if [ ! -f build/distributions/*.zip ]; then
+            echo "Error: Plugin ZIP file not found!"
+            exit 1
+          fi
       
       - name: Get version
         id: version
@@ -41,13 +50,37 @@ jobs:
             echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
           fi
       
+      - name: Get plugin filename
+        id: plugin
+        run: |
+          PLUGIN_FILE=$(ls build/distributions/*.zip | head -n 1)
+          echo "file=$PLUGIN_FILE" >> $GITHUB_OUTPUT
+          echo "name=$(basename $PLUGIN_FILE)" >> $GITHUB_OUTPUT
+      
       - name: Create Release
         uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
-          files: build/distributions/*.zip
+          files: ${{ steps.plugin.outputs.file }}
+          body: |
+            ## AI Commit Message Generator v${{ steps.version.outputs.version }}
+            
+            ### Installation
+            1. Download the plugin ZIP file below
+            2. In IntelliJ IDEA, go to Settings → Plugins → ⚙️ → Install Plugin from Disk
+            3. Select the downloaded ZIP file
+            4. Restart IntelliJ IDEA
+            
+            ### Features
+            - ✅ VCS-agnostic: Works with Git, SVN, Mercurial, Perforce, and any VCS
+            - ✅ Cross-platform: Windows, macOS, Linux
+            - ✅ Multiple AI providers: Ollama, OpenAI, OpenRouter
+            
+            ### Plugin File
+            - `${{ steps.plugin.outputs.name }}`
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
