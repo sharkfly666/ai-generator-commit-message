@@ -223,24 +223,51 @@ public class GenerateCommitMessageAction extends AnAction {
             return "";
         }
 
-        // Read with explicit UTF-8 encoding for cross-platform compatibility
-        String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
-        // Split on both Unix (\n) and Windows (\r\n) line endings
-        String[] lines = content.split("\\r?\\n", -1);
-
-        // Format as unified diff (all lines are additions)
-        StringBuilder diff = new StringBuilder();
-        diff.append("diff --git a/").append(relativePath).append(" b/").append(relativePath).append("\n");
-        diff.append("new file mode 100644\n");
-        diff.append("--- /dev/null\n");
-        diff.append("+++ b/").append(relativePath).append("\n");
-        diff.append("@@ -0,0 +1,").append(lines.length).append(" @@\n");
-
-        for (String line : lines) {
-            diff.append("+").append(line).append("\n");
+        // Check if file is binary using IntelliJ's FileType API
+        if (filePath.getFileType().isBinary()) {
+            String fileType = filePath.getFileType().getName();
+             // If generic "UNKNOWN", try extension
+            if ("UNKNOWN".equals(fileType)) {
+                 int lastDotIndex = absolutePath.lastIndexOf('.');
+                if (lastDotIndex > 0 && lastDotIndex < absolutePath.length() - 1) {
+                    fileType = absolutePath.substring(lastDotIndex + 1).toUpperCase() + " File";
+                }
+            }
+            return String.format("File: %s (%s)\nOperation: New File\n", relativePath, fileType);
         }
 
-        return diff.toString();
+        try {
+            // Read with explicit UTF-8 encoding for cross-platform compatibility
+            String content = Files.readString(file.toPath(), StandardCharsets.UTF_8);
+            // Split on both Unix (\n) and Windows (\r\n) line endings
+            String[] lines = content.split("\\r?\\n", -1);
+
+            // Format as unified diff (all lines are additions)
+            StringBuilder diff = new StringBuilder();
+            diff.append("diff --git a/").append(relativePath).append(" b/").append(relativePath).append("\n");
+            diff.append("new file mode 100644\n");
+            diff.append("--- /dev/null\n");
+            diff.append("+++ b/").append(relativePath).append("\n");
+            diff.append("@@ -0,0 +1,").append(lines.length).append(" @@\n");
+
+            for (String line : lines) {
+                diff.append("+").append(line).append("\n");
+            }
+            return diff.toString();
+
+        } catch (java.nio.charset.MalformedInputException e) {
+            // Binary file detected
+            String fileType = "Binary";
+            int lastDotIndex = absolutePath.lastIndexOf('.');
+            if (lastDotIndex > 0 && lastDotIndex < absolutePath.length() - 1) {
+                fileType = absolutePath.substring(lastDotIndex + 1).toUpperCase() + " File";
+            }
+            return String.format("File: %s (%s)\nOperation: New File\n", relativePath, fileType);
+        } catch (Exception e) {
+            System.err.println("Error reading file " + absolutePath + ": " + e.getMessage());
+            // Fallback for other errors
+            return String.format("File: %s (Unknown Type)\nOperation: New File\nNote: Error reading content\n", relativePath);
+        }
     }
 
     /**

@@ -24,15 +24,42 @@ public class UnifiedDiffGenerator {
         ContentRevision before = change.getBeforeRevision();
         ContentRevision after = change.getAfterRevision();
 
-        String beforeContent = before != null ? before.getContent() : "";
-        String afterContent = after != null ? after.getContent() : "";
-
         FilePath filePath = after != null ? after.getFile() : before.getFile();
         String path = filePath.getPath();
+
+        String beforeContent = before != null ? before.getContent() : "";
+        String afterContent = after != null ? after.getContent() : "";
 
         // Determine change type
         boolean isNewFile = before == null;
         boolean isDeletedFile = after == null;
+
+        // Check for binary files (getContent returning null often implies binary or too large)
+        // Also check FileType API for robustness
+        boolean isBinary = (before != null && beforeContent == null) || 
+                           (after != null && afterContent == null) ||
+                           (filePath != null && filePath.getFileType().isBinary());
+
+        if (isBinary) {
+            String operation = isNewFile ? "New File" : (isDeletedFile ? "Deleted File" : "Modified File");
+            String fileType = "Binary";
+            if (filePath != null) {
+                fileType = filePath.getFileType().getName();
+            }
+            // Fallback if needed
+            if ("UNKNOWN".equals(fileType) || "Binary".equals(fileType)) {
+                 int lastDotIndex = path.lastIndexOf('.');
+                if (lastDotIndex > 0 && lastDotIndex < path.length() - 1) {
+                    fileType = path.substring(lastDotIndex + 1).toUpperCase() + " File";
+                }
+            }
+
+            return String.format("File: %s (%s)\nOperation: %s\n", path, fileType, operation);
+        }
+
+        // Fallback for non-binary nulls (shouldn't happen with logic above, but safety first)
+        if (beforeContent == null) beforeContent = "";
+        if (afterContent == null) afterContent = "";
 
         return createUnifiedDiff(path, beforeContent, afterContent, isNewFile, isDeletedFile, filePath, project);
     }
