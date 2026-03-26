@@ -44,7 +44,7 @@ cd ai-generator-commit-message
 3. Install in IntelliJ IDEA:
    - Open `Settings/Preferences` → `Plugins`
    - Click the gear icon → `Install Plugin from Disk...`
-   - Select `build/distributions/ai-generator-commit-message-1.0.0.zip`
+   - Select `build/distributions/ai-generator-commit-message-1.0.5.zip`
 
 4. Restart IntelliJ IDEA
 
@@ -186,13 +186,13 @@ The project uses GitHub Actions to automatically build and release the plugin.
 **Method 1: Manual Trigger**
 1. Go to GitHub repository → Actions → Release Plugin
 2. Click "Run workflow"
-3. Enter version number (e.g., `1.0.3`)
+3. Enter version number (e.g., `1.0.5`)
 4. Click "Run workflow"
 
 **Method 2: Git Tag**
 ```bash
-git tag v1.0.3
-git push origin v1.0.3
+git tag v1.0.5
+git push origin v1.0.5
 ```
 
 The workflow will:
@@ -284,7 +284,7 @@ cd ai-generator-commit-message
 3. 在 IntelliJ IDEA 中安装：
    - 打开 `Settings/Preferences` → `Plugins`
    - 点击齿轮图标 → `Install Plugin from Disk...`
-   - 选择 `build/distributions/ai-generator-commit-message-1.0.0.zip`
+   - 选择 `build/distributions/ai-generator-commit-message-1.0.5.zip`
 
 4. 重启 IntelliJ IDEA
 
@@ -427,13 +427,13 @@ src/main/java/com/github/jdami/aicommit/
 **方法 1：手动触发**
 1. 进入 GitHub 仓库 → Actions → Release Plugin
 2. 点击 "Run workflow"
-3. 输入版本号（如 `1.0.3`）
+3. 输入版本号（如 `1.0.5`）
 4. 点击 "Run workflow"
 
 **方法 2：Git 标签**
 ```bash
-git tag v1.0.3
-git push origin v1.0.3
+git tag v1.0.5
+git push origin v1.0.5
 ```
 
 工作流将：
