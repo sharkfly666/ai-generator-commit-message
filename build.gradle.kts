@@ -23,6 +23,7 @@ dependencies {
 
     intellijPlatform {
         create(IntelliJPlatformType.IntellijIdea, providers.gradleProperty("platformVersion").get())
+        bundledModule("intellij.platform.vcs.impl")
         pluginVerifier()
         zipSigner()
     }
