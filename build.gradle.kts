@@ -1,53 +1,70 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
+
 plugins {
     id("java")
-    id("org.jetbrains.kotlin.jvm") version "1.9.21"
-    id("org.jetbrains.intellij") version "1.17.4"
+    id("org.jetbrains.intellij.platform") version "2.12.0"
 }
 
-group = "com.github.jdami"
-version = "1.0.4"
+group = providers.gradleProperty("pluginGroup").get()
+version = providers.gradleProperty("pluginVersion").get()
 
 repositories {
     mavenCentral()
+    intellijPlatform {
+        defaultRepositories()
+    }
 }
 
 dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.google.code.gson:gson:2.10.1")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+
+    intellijPlatform {
+        create(IntelliJPlatformType.IntellijIdea, providers.gradleProperty("platformVersion").get())
+        pluginVerifier()
+        zipSigner()
+    }
 }
 
-// Configure Gradle IntelliJ Plugin
-intellij {
-    version.set("2023.2.5")
-    type.set("IC") // Target IDE Platform: IC = IntelliJ IDEA Community Edition
-    
-    // No specific VCS plugins required - works with any VCS through IntelliJ's VCS API
-    plugins.set(listOf())
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(providers.gradleProperty("javaVersion").get().toInt())
+    }
+}
+
+intellijPlatform {
+    pluginConfiguration {
+        name = providers.gradleProperty("pluginName")
+        version = providers.gradleProperty("pluginVersion")
+        ideaVersion {
+            sinceBuild = providers.gradleProperty("pluginSinceBuild")
+            untilBuild = providers.gradleProperty("pluginUntilBuild")
+        }
+    }
+    pluginVerification {
+        ides {
+            create(IntelliJPlatformType.IntellijIdea, providers.gradleProperty("platformVersion").get())
+            create(IntelliJPlatformType.IntellijIdea, "2026.1")
+        }
+    }
+    signing {
+        certificateChain = providers.environmentVariable("CERTIFICATE_CHAIN")
+        privateKey = providers.environmentVariable("PRIVATE_KEY")
+        password = providers.environmentVariable("PRIVATE_KEY_PASSWORD")
+    }
+    publishing {
+        token = providers.environmentVariable("PUBLISH_TOKEN")
+    }
 }
 
 tasks {
-    // Set the JVM compatibility versions
-    withType<JavaCompile> {
-        sourceCompatibility = "17"
-        targetCompatibility = "17"
-    }
-    
-    withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile> {
-        kotlinOptions.jvmTarget = "17"
+    withType<JavaCompile>().configureEach {
+        options.release = providers.gradleProperty("javaVersion").get().toInt()
     }
 
-    patchPluginXml {
-        sinceBuild.set("232")
-        untilBuild.set("253.*")
-    }
-
-    signPlugin {
-        certificateChain.set(System.getenv("CERTIFICATE_CHAIN"))
-        privateKey.set(System.getenv("PRIVATE_KEY"))
-        password.set(System.getenv("PRIVATE_KEY_PASSWORD"))
-    }
-
-    publishPlugin {
-        token.set(System.getenv("PUBLISH_TOKEN"))
+    test {
+        useJUnitPlatform()
     }
 }
