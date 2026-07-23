@@ -2,7 +2,7 @@ import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 
 plugins {
     id("java")
-    id("org.jetbrains.intellij.platform") version "2.12.0"
+    id("org.jetbrains.intellij.platform") version "2.18.1"
 }
 
 group = providers.gradleProperty("pluginGroup").get()
@@ -23,7 +23,6 @@ dependencies {
 
     intellijPlatform {
         create(IntelliJPlatformType.IntellijIdea, providers.gradleProperty("platformVersion").get())
-        bundledModule("intellij.platform.vcs.impl")
         pluginVerifier()
         zipSigner()
     }
@@ -48,6 +47,7 @@ intellijPlatform {
         ides {
             create(IntelliJPlatformType.IntellijIdea, providers.gradleProperty("platformVersion").get())
             create(IntelliJPlatformType.IntellijIdea, "2026.1")
+            create(IntelliJPlatformType.IntellijIdea, "2026.2")
         }
     }
     signing {
@@ -62,7 +62,9 @@ intellijPlatform {
 
 tasks {
     withType<JavaCompile>().configureEach {
-        options.release = providers.gradleProperty("javaVersion").get().toInt()
+        // Toolchain JDK resolves via javaVersion property (25+ for platform 2026.x)
+        // Bytecode release target stays at 21 for compatibility with bundled JRE 21 in 2025.3-2026.1 IDEs
+        options.release = 21
     }
 
     test {

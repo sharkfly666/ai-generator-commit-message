@@ -9,3 +9,6 @@ out
 *.ipr
 *.iws
 .DS_Store
+bin/
+.ai_memory/
+微信图片_*.jpg

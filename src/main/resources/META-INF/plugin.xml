@@ -29,11 +29,12 @@
     ]]></description>
 
     <change-notes><![CDATA[
-    <h2>1.0.5</h2>
+    <h2>1.1.0</h2>
     <ul>
-        <li>Migrate the build to IntelliJ Platform Gradle Plugin 2.x</li>
-        <li>Raise the minimum supported IDE version to IntelliJ IDEA 2025.3</li>
-        <li>Align the plugin with the IntelliJ IDEA 2026.1 platform line</li>
+        <li>Upgrade to IntelliJ Platform Gradle Plugin 2.18.1</li>
+        <li>Extend compatibility to IntelliJ IDEA 2026.2</li>
+        <li>Replace deprecated internal patch API with self-contained diff generator</li>
+        <li>Bump build toolchain to JDK 25 (bytecode target stays Java 21)</li>
     </ul>
     ]]></change-notes>
 

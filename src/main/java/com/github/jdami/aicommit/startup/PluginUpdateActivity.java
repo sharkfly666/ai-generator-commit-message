@@ -1,24 +1,21 @@
 package com.github.jdami.aicommit.startup;
 
 import com.github.jdami.aicommit.settings.AiSettingsState;
-import com.intellij.ide.plugins.IdeaPluginDescriptor;
-import com.intellij.ide.plugins.PluginManagerCore;
-import com.intellij.openapi.extensions.PluginId;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.startup.StartupActivity;
 import com.intellij.openapi.startup.ProjectActivity;
 import kotlin.Unit;
-import kotlin.coroutines.Continuation;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
+import kotlin.coroutines.Continuation;
 
 /**
- * Activity to run on project startup to check for plugin updates.
+ * Activity to run on project startup to initialize plugin state.
  * Implements both StartupActivity (legacy) and ProjectActivity (new) for compatibility.
  */
 public class PluginUpdateActivity implements StartupActivity, ProjectActivity {
 
-    private static final String PLUGIN_ID = "com.github.jdami.ai-generator-commit-message";
+    private static final String PLUGIN_VERSION = "1.1.0";
 
     @Override
     public void runActivity(@NotNull Project project) {
@@ -32,18 +29,12 @@ public class PluginUpdateActivity implements StartupActivity, ProjectActivity {
     }
 
     private void run(Project project) {
-        IdeaPluginDescriptor plugin = PluginManagerCore.getPlugin(PluginId.getId(PLUGIN_ID));
-        if (plugin == null) {
-            return;
-        }
-
-        String currentVersion = plugin.getVersion();
         AiSettingsState settings = AiSettingsState.getInstance();
+        if (settings == null) return;
 
-        // If version changed or not set, update version but keep settings
-        if (!currentVersion.equals(settings.pluginVersion)) {
-            System.out.println("Plugin updated from " + settings.pluginVersion + " to " + currentVersion);
-            settings.pluginVersion = currentVersion;
+        // Track first-run detection by ensuring pluginVersion is set
+        if (settings.pluginVersion == null || settings.pluginVersion.isEmpty()) {
+            settings.pluginVersion = PLUGIN_VERSION;
         }
     }
 }
