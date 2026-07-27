@@ -11,6 +11,8 @@ import okhttp3.OkHttpClient;
 import org.jetbrains.annotations.Nullable;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -30,12 +32,37 @@ public abstract class BaseHttpProviderClient implements AiProviderClient {
         }
     }
 
-    protected OkHttpClient buildClient(GenerationInputs inputs) {
-        return new OkHttpClient.Builder()
+    protected OkHttpClient buildClient(GenerationInputs inputs) throws IOException {
+        OkHttpClient.Builder builder = new OkHttpClient.Builder()
                 .connectTimeout(inputs.timeoutSeconds, TimeUnit.SECONDS)
                 .readTimeout(inputs.timeoutSeconds, TimeUnit.SECONDS)
-                .writeTimeout(inputs.timeoutSeconds, TimeUnit.SECONDS)
-                .build();
+                .writeTimeout(inputs.timeoutSeconds, TimeUnit.SECONDS);
+
+        applyProxy(builder, inputs);
+        return builder.build();
+    }
+
+    private void applyProxy(OkHttpClient.Builder builder, GenerationInputs inputs) throws IOException {
+        if (!inputs.proxyEnabled) {
+            return;
+        }
+
+        String host = inputs.proxyHost != null ? inputs.proxyHost.trim() : "";
+        int port = inputs.proxyPort;
+        if (host.isEmpty()) {
+            throw new IOException("Proxy is enabled but host is empty");
+        }
+        if (host.contains("://")) {
+            throw new IOException("Proxy host must not include a scheme (use host only, e.g. 127.0.0.1)");
+        }
+        if (host.contains("/") || host.contains("?")) {
+            throw new IOException("Proxy host is invalid: " + host);
+        }
+        if (port <= 0 || port > 65535) {
+            throw new IOException("Proxy port must be between 1 and 65535");
+        }
+
+        builder.proxy(new Proxy(Proxy.Type.HTTP, new InetSocketAddress(host, port)));
     }
 
     protected void checkCanceled(@Nullable ProgressIndicator indicator) {

@@ -61,6 +61,10 @@ public class AiService {
     }
 
     private GenerationInputs buildInputs(String prompt, AiSettingsState settings) {
+        boolean proxyEnabled = settings.proxyEnabled;
+        String proxyHost = settings.proxyHost;
+        int proxyPort = settings.proxyPort;
+
         if (settings.provider == AiSettingsState.Provider.OPENAI) {
             return new GenerationInputs(
                     prompt,
@@ -68,7 +72,10 @@ public class AiService {
                     settings.providers.openAi.endpoint,
                     settings.providers.openAi.model,
                     settings.providers.openAi.apiKey,
-                    settings.timeout
+                    settings.timeout,
+                    proxyEnabled,
+                    proxyHost,
+                    proxyPort
             );
         } else if (settings.provider == AiSettingsState.Provider.OPENROUTER) {
             return new GenerationInputs(
@@ -77,7 +84,10 @@ public class AiService {
                     settings.providers.openRouter.endpoint,
                     settings.providers.openRouter.model,
                     settings.providers.openRouter.apiKey,
-                    settings.timeout
+                    settings.timeout,
+                    proxyEnabled,
+                    proxyHost,
+                    proxyPort
             );
         }
 
@@ -87,7 +97,10 @@ public class AiService {
                 settings.providers.ollama.endpoint,
                 settings.providers.ollama.model,
                 "",
-                settings.timeout
+                settings.timeout,
+                proxyEnabled,
+                proxyHost,
+                proxyPort
         );
     }
 }

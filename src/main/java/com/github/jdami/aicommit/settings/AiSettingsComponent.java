@@ -38,6 +38,10 @@ public class AiSettingsComponent {
     private final JComboBox<ContextWindowPreset> contextWindowCombo = new JComboBox<>(ContextWindowPreset.values());
     private final JTextArea systemPromptArea = new JTextArea(5, 40);
 
+    private final JCheckBox proxyEnabledCheckBox = new JCheckBox("启用 HTTP 代理");
+    private final JBTextField proxyHostField = new JBTextField();
+    private final JSpinner proxyPortSpinner = new JSpinner(new SpinnerNumberModel(7890, 1, 65535, 1));
+
     private JBLabel createLabel(String text) {
         JBLabel label = new JBLabel(text);
         // Set a consistent width to ensure alignment across different FormBuilders
@@ -96,6 +100,11 @@ public class AiSettingsComponent {
                 .addComponent(providerCards)
                 .addLabeledComponent(createLabel("Timeout(s): "), timeoutAndTestPanel, 1, false)
                 .addVerticalGap(5)
+                .addComponent(new com.intellij.ui.TitledSeparator("Network Proxy"))
+                .addComponent(proxyEnabledCheckBox)
+                .addLabeledComponent(createLabel("代理地址: "), proxyHostField, 1, false)
+                .addLabeledComponent(createLabel("代理端口: "), proxyPortSpinner, 1, false)
+                .addVerticalGap(5)
                 .addComponent(new com.intellij.ui.TitledSeparator("Content Limit Settings"))
                 .addLabeledComponent(createLabel("上下文窗口: "), contextWindowPanel, 1, false)
                 .addVerticalGap(5)
@@ -108,6 +117,9 @@ public class AiSettingsComponent {
         mainPanel.setBorder(JBUI.Borders.empty(10));
 
         providerCombo.addActionListener(e -> switchProviderCard());
+
+        proxyEnabledCheckBox.addActionListener(e -> updateProxyFieldsEnabled());
+        updateProxyFieldsEnabled();
     }
 
     private JPanel createApiKeyPanel(JBPasswordField apiKeyField) {
@@ -211,6 +223,38 @@ public class AiSettingsComponent {
         return (Integer) timeoutSpinner.getValue();
     }
 
+    public boolean isProxyEnabled() {
+        return proxyEnabledCheckBox.isSelected();
+    }
+
+    public void setProxyEnabled(boolean enabled) {
+        proxyEnabledCheckBox.setSelected(enabled);
+        updateProxyFieldsEnabled();
+    }
+
+    public String getProxyHost() {
+        return proxyHostField.getText() != null ? proxyHostField.getText() : "";
+    }
+
+    public void setProxyHost(String host) {
+        proxyHostField.setText(host != null ? host : "");
+    }
+
+    public int getProxyPort() {
+        return (Integer) proxyPortSpinner.getValue();
+    }
+
+    public void setProxyPort(int port) {
+        int safePort = port > 0 && port <= 65535 ? port : 7890;
+        proxyPortSpinner.setValue(safePort);
+    }
+
+    private void updateProxyFieldsEnabled() {
+        boolean enabled = proxyEnabledCheckBox.isSelected();
+        proxyHostField.setEnabled(enabled);
+        proxyPortSpinner.setEnabled(enabled);
+    }
+
     public void setTimeout(int timeout) {
         timeoutSpinner.setValue(timeout);
     }
@@ -291,7 +335,7 @@ public class AiSettingsComponent {
         final String endpoint;
         final String model;
         final String apiKey;
-        
+
         switch (provider) {
             case OLLAMA:
                 endpoint = getOllamaEndpoint().trim();
@@ -311,7 +355,13 @@ public class AiSettingsComponent {
             default:
                 throw new IllegalStateException("Unknown provider: " + provider);
         }
-        
+
+        // Read UI values on EDT before entering the background task
+        final int timeoutSeconds = getTimeout();
+        final boolean testProxyEnabled = isProxyEnabled();
+        final String testProxyHost = getProxyHost().trim();
+        final int testProxyPort = getProxyPort();
+
         // Validate inputs
         if (endpoint.isEmpty()) {
             Messages.showErrorDialog("Endpoint cannot be empty", "Test Connection Failed");
@@ -325,21 +375,42 @@ public class AiSettingsComponent {
             Messages.showErrorDialog("API Key cannot be empty", "Test Connection Failed");
             return;
         }
-        
-        // Test connection in background
-        ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
+        if (testProxyEnabled) {
+            if (testProxyHost.isEmpty()) {
+                Messages.showErrorDialog("Proxy host cannot be empty when proxy is enabled", "Test Connection Failed");
+                return;
+            }
+            if (testProxyHost.contains("://")) {
+                Messages.showErrorDialog("Proxy host must not include a scheme (use host only, e.g. 127.0.0.1)", "Test Connection Failed");
+                return;
+            }
+            if (testProxyHost.contains("/") || testProxyHost.contains("?")) {
+                Messages.showErrorDialog("Proxy host is invalid: " + testProxyHost, "Test Connection Failed");
+                return;
+            }
+            if (testProxyPort <= 0 || testProxyPort > 65535) {
+                Messages.showErrorDialog("Proxy port must be between 1 and 65535", "Test Connection Failed");
+                return;
+            }
+        }
+
+        final java.util.concurrent.atomic.AtomicReference<String> resultRef = new java.util.concurrent.atomic.AtomicReference<>();
+        final java.util.concurrent.atomic.AtomicReference<Exception> errorRef = new java.util.concurrent.atomic.AtomicReference<>();
+
+        boolean finished = ProgressManager.getInstance().runProcessWithProgressSynchronously(() -> {
             try {
-                // Create test inputs
                 GenerationInputs inputs = new GenerationInputs(
                         "Test connection",
                         "You are a test assistant. Reply with 'OK' if you receive this message.",
                         endpoint,
                         model,
                         apiKey,
-                        getTimeout()
+                        timeoutSeconds,
+                        testProxyEnabled,
+                        testProxyEnabled ? testProxyHost : null,
+                        testProxyEnabled ? testProxyPort : 0
                 );
-                
-                // Select the appropriate client and test
+
                 String response;
                 switch (provider) {
                     case OLLAMA:
@@ -354,24 +425,37 @@ public class AiSettingsComponent {
                     default:
                         throw new IllegalStateException("Unknown provider: " + provider);
                 }
-                
-                // Show success message
-                String finalResponse = response;
-                SwingUtilities.invokeLater(() -> 
-                    Messages.showInfoMessage(
-                        "Connection successful!\n\nProvider: " + provider + "\nModel: " + model + "\nResponse: " + finalResponse.substring(0, Math.min(100, finalResponse.length())) + "...",
-                        "Test Connection Successful"
-                    )
-                );
-                
+
+                resultRef.set(response);
             } catch (Exception ex) {
-                SwingUtilities.invokeLater(() -> 
-                    Messages.showErrorDialog(
-                        "Connection failed: " + ex.getMessage(),
-                        "Test Connection Failed"
-                    )
-                );
+                errorRef.set(ex);
             }
         }, "Testing Connection...", true, null);
+
+        if (!finished) {
+            // User cancelled the progress dialog
+            return;
+        }
+
+        if (errorRef.get() != null) {
+            Messages.showErrorDialog(
+                    "Connection failed: " + errorRef.get().getMessage(),
+                    "Test Connection Failed"
+            );
+            return;
+        }
+
+        String finalResponse = resultRef.get();
+        if (finalResponse == null) {
+            Messages.showErrorDialog("Connection failed: empty response", "Test Connection Failed");
+            return;
+        }
+        if (finalResponse.length() > 100) {
+            finalResponse = finalResponse.substring(0, 100) + "...";
+        }
+        Messages.showInfoMessage(
+                "Connection successful!\n\nProvider: " + provider + "\nModel: " + model + "\nResponse: " + finalResponse,
+                "Test Connection Successful"
+        );
     }
 }

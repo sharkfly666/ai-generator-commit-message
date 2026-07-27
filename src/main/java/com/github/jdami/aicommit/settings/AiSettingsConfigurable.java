@@ -50,6 +50,9 @@ public class AiSettingsConfigurable implements Configurable {
         int currentTimeout = settingsComponent.getTimeout();
         int currentMaxDiffChars = settingsComponent.getMaxDiffChars();
         String currentSystemPrompt = settingsComponent.getSystemPrompt();
+        boolean currentProxyEnabled = settingsComponent.isProxyEnabled();
+        String currentProxyHost = settingsComponent.getProxyHost().trim();
+        int currentProxyPort = settingsComponent.getProxyPort();
         
         return currentProvider != settings.provider
                 || !currentEndpoint.equals(settings.providers.ollama.endpoint)
@@ -62,7 +65,10 @@ public class AiSettingsConfigurable implements Configurable {
                 || !currentOpenRouterApiKey.equals(settings.providers.openRouter.apiKey)
                 || currentTimeout != settings.timeout
                 || currentMaxDiffChars != settings.maxDiffChars
-                || !currentSystemPrompt.equals(settings.systemPrompt);
+                || !currentSystemPrompt.equals(settings.systemPrompt)
+                || currentProxyEnabled != settings.proxyEnabled
+                || !currentProxyHost.equals(settings.proxyHost != null ? settings.proxyHost : "")
+                || currentProxyPort != settings.proxyPort;
     }
 
     @Override
@@ -116,6 +122,24 @@ public class AiSettingsConfigurable implements Configurable {
                 throw new ConfigurationException("OpenRouter API key cannot be empty");
             }
         }
+
+        boolean proxyEnabled = settingsComponent.isProxyEnabled();
+        String proxyHost = settingsComponent.getProxyHost().trim();
+        int proxyPort = settingsComponent.getProxyPort();
+        if (proxyEnabled) {
+            if (proxyHost.isEmpty()) {
+                throw new ConfigurationException("Proxy host cannot be empty when proxy is enabled");
+            }
+            if (proxyHost.contains("://")) {
+                throw new ConfigurationException("Proxy host must not include a scheme (use host only, e.g. 127.0.0.1)");
+            }
+            if (proxyHost.contains("/") || proxyHost.contains("?")) {
+                throw new ConfigurationException("Proxy host is invalid: " + proxyHost);
+            }
+            if (proxyPort <= 0 || proxyPort > 65535) {
+                throw new ConfigurationException("Proxy port must be between 1 and 65535");
+            }
+        }
         
         // Apply settings
         settings.provider = provider != null ? provider : Provider.OLLAMA;
@@ -139,6 +163,9 @@ public class AiSettingsConfigurable implements Configurable {
         settings.timeout = settingsComponent.getTimeout();
         settings.maxDiffChars = settingsComponent.getMaxDiffChars();
         settings.systemPrompt = systemPrompt;
+        settings.proxyEnabled = proxyEnabled;
+        settings.proxyHost = proxyHost;
+        settings.proxyPort = proxyPort;
         
         // Force state persistence
         settings.loadState(settings);
@@ -172,6 +199,9 @@ public class AiSettingsConfigurable implements Configurable {
         settingsComponent.setTimeout(settings.timeout);
         settingsComponent.setMaxDiffChars(settings.maxDiffChars);
         settingsComponent.setSystemPrompt(settings.systemPrompt != null ? settings.systemPrompt : getDefaultSystemPrompt());
+        settingsComponent.setProxyEnabled(settings.proxyEnabled);
+        settingsComponent.setProxyHost(settings.proxyHost != null ? settings.proxyHost : "");
+        settingsComponent.setProxyPort(settings.proxyPort > 0 ? settings.proxyPort : 7890);
     }
     
     private String getDefaultSystemPrompt() {

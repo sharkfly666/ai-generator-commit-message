@@ -90,7 +90,22 @@ public class AiSettingsState implements PersistentStateComponent<AiSettingsState
     public String openAiModel = "gpt-4o-mini";
 
     public int timeout = 30;
-    
+
+    /**
+     * Whether model HTTP requests should go through a configured HTTP proxy.
+     */
+    public boolean proxyEnabled = false;
+
+    /**
+     * HTTP proxy host (e.g. 127.0.0.1). Used only when {@link #proxyEnabled} is true.
+     */
+    public String proxyHost = "";
+
+    /**
+     * HTTP proxy port. Used only when {@link #proxyEnabled} is true.
+     */
+    public int proxyPort = 7890;
+
     /**
      * Maximum characters allowed for diff content.
      * Set to 0 for unlimited (not recommended).
@@ -317,6 +332,9 @@ public class AiSettingsState implements PersistentStateComponent<AiSettingsState
                 "5. ✅ 准确识别变更类型\n" +
                 "6. ✅ 清晰描述核心逻辑\n\n" +
                 "**立即开始**：直接以 `type(scope):` 格式输出，不要任何其他内容。";
+        this.proxyEnabled = false;
+        this.proxyHost = "";
+        this.proxyPort = 7890;
     }
 
     private void migrateLegacyFields() {
@@ -365,6 +383,12 @@ public class AiSettingsState implements PersistentStateComponent<AiSettingsState
         }
         if (providers.openAi.apiKey == null) {
             providers.openAi.apiKey = "";
+        }
+        if (proxyHost == null) {
+            proxyHost = "";
+        }
+        if (proxyPort <= 0 || proxyPort > 65535) {
+            proxyPort = 7890;
         }
     }
 }
