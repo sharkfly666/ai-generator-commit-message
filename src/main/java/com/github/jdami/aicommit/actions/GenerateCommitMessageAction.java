@@ -4,6 +4,7 @@ import com.github.jdami.aicommit.service.AiService;
 import com.github.jdami.aicommit.util.UnifiedDiffGenerator;
 import com.intellij.openapi.actionSystem.AnAction;
 import com.intellij.openapi.actionSystem.AnActionEvent;
+import com.intellij.openapi.actionSystem.DataContext;
 import com.intellij.openapi.application.ApplicationManager;
 import com.intellij.openapi.progress.ProcessCanceledException;
 import com.intellij.openapi.progress.ProgressIndicator;
@@ -16,10 +17,11 @@ import com.intellij.openapi.vcs.CheckinProjectPanel;
 import com.intellij.openapi.vcs.CommitMessageI;
 import com.intellij.openapi.vcs.FilePath;
 import com.intellij.openapi.vcs.VcsException;
+import com.intellij.openapi.vcs.VcsDataKeys;
 import com.intellij.openapi.vcs.changes.Change;
 import com.intellij.openapi.vcs.ui.Refreshable;
-import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.vcsUtil.VcsUtil;
+import com.intellij.vcs.commit.CommitWorkflowUi;
 import org.jetbrains.annotations.NotNull;
 
 import java.io.File;
@@ -27,6 +29,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Collection;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
 
 /**
@@ -60,44 +63,13 @@ public class GenerateCommitMessageAction extends AnAction {
             return;
         }
 
-        // Get the commit panel
-        Refreshable data = Refreshable.PANEL_KEY.getData(e.getDataContext());
-        if (!(data instanceof CheckinProjectPanel)) {
-            Messages.showErrorDialog(project, "Unable to access commit panel", "Error");
+        CommitInput input = resolveCommitInput(e.getDataContext(), project);
+        if (input == null) {
             return;
         }
-
-        CheckinProjectPanel checkinPanel = (CheckinProjectPanel) data;
-        CommitMessageI commitMessageI = (CommitMessageI) checkinPanel;
-
-        // Get the changes to be committed
-        Collection<Change> changes = checkinPanel.getSelectedChanges();
-        
-        // Get unversioned files selected for commit (new files not yet added to VCS)
-        // Use FileStatusManager to check file status (compatible with all IntelliJ versions)
-        com.intellij.openapi.vcs.FileStatusManager fileStatusManager = 
-            com.intellij.openapi.vcs.FileStatusManager.getInstance(project);
-        
-        // Get all selected files and filter for unversioned ones
-        Collection<VirtualFile> selectedVirtualFiles = checkinPanel.getVirtualFiles();
-        List<FilePath> unversionedFiles = selectedVirtualFiles.stream()
-            .filter(vf -> {
-                // Check if file is unversioned (not in any change and has UNKNOWN status)
-                com.intellij.openapi.vcs.FileStatus status = fileStatusManager.getStatus(vf);
-                boolean isUnversioned = status == com.intellij.openapi.vcs.FileStatus.UNKNOWN;
-                
-                // Also check it's not already in the changes collection
-                String vfPath = vf.getPath();
-                boolean notInChanges = changes.stream().noneMatch(c ->
-                    (c.getAfterRevision() != null && c.getAfterRevision().getFile().getPath().equals(vfPath)) ||
-                    (c.getBeforeRevision() != null && c.getBeforeRevision().getFile().getPath().equals(vfPath))
-                );
-                
-                return isUnversioned && notInChanges;
-            })
-            .map(VcsUtil::getFilePath)
-            .collect(Collectors.toList());
-        
+        Consumer<String> setCommitMessage = input.setMessage();
+        Collection<Change> changes = input.changes();
+        List<FilePath> unversionedFiles = input.unversionedFiles();
         if (changes.isEmpty() && unversionedFiles.isEmpty()) {
             Messages.showWarningDialog(project, "No changes selected for commit", "Warning");
             return;
@@ -148,7 +120,7 @@ public class GenerateCommitMessageAction extends AnAction {
             public void onSuccess() {
                 if (generatedMessage != null && !generatedMessage.isEmpty() && !wasCancelled) {
                     ApplicationManager.getApplication()
-                            .invokeLater(() -> commitMessageI.setCommitMessage(generatedMessage));
+                            .invokeLater(() -> setCommitMessage.accept(generatedMessage));
                 }
             }
 
@@ -163,6 +135,52 @@ public class GenerateCommitMessageAction extends AnAction {
                 markIdle();
             }
         });
+    }
+
+    static boolean hasCommitContext(DataContext context) {
+        if (VcsDataKeys.COMMIT_WORKFLOW_UI.getData(context) != null
+                || Refreshable.PANEL_KEY.getData(context) instanceof CheckinProjectPanel) {
+            return true;
+        }
+        Change[] changes = VcsDataKeys.SELECTED_CHANGES.getData(context);
+        return VcsDataKeys.COMMIT_MESSAGE_CONTROL.getData(context) != null
+                && changes != null && changes.length > 0;
+    }
+
+    record CommitInput(Consumer<String> setMessage, List<Change> changes, List<FilePath> unversionedFiles) { }
+
+    static CommitInput resolveCommitInput(DataContext context, Project project) {
+        CommitMessageI message = VcsDataKeys.COMMIT_MESSAGE_CONTROL.getData(context);
+        CommitWorkflowUi workflow = VcsDataKeys.COMMIT_WORKFLOW_UI.getData(context);
+        if (workflow != null) {
+            Consumer<String> setter = message != null
+                    ? message::setCommitMessage : workflow.getCommitMessageUi()::setText;
+            return new CommitInput(setter, List.copyOf(workflow.getIncludedChanges()),
+                    List.copyOf(workflow.getIncludedUnversionedFiles()));
+        }
+
+        if (Refreshable.PANEL_KEY.getData(context) instanceof CheckinProjectPanel panel) {
+            List<Change> changes = List.copyOf(panel.getSelectedChanges());
+            List<FilePath> unversionedFiles = panel.getVirtualFiles().stream()
+                    .filter(file -> com.intellij.openapi.vcs.FileStatusManager.getInstance(project).getStatus(file)
+                            == com.intellij.openapi.vcs.FileStatus.UNKNOWN)
+                    .filter(file -> changes.stream().noneMatch(change ->
+                            (change.getAfterRevision() != null
+                                    && change.getAfterRevision().getFile().getPath().equals(file.getPath()))
+                            || (change.getBeforeRevision() != null
+                                    && change.getBeforeRevision().getFile().getPath().equals(file.getPath()))))
+                    .map(VcsUtil::getFilePath)
+                    .collect(Collectors.toList());
+            return new CommitInput(message != null ? message::setCommitMessage : panel::setCommitMessage,
+                    changes, unversionedFiles);
+        }
+
+        // Standalone message editors can expose a message control without a check-in panel.
+        Change[] changes = VcsDataKeys.SELECTED_CHANGES.getData(context);
+        if (message != null && changes != null && changes.length > 0) {
+            return new CommitInput(message::setCommitMessage, List.of(changes), List.of());
+        }
+        return null;
     }
 
     /**
@@ -276,7 +294,8 @@ public class GenerateCommitMessageAction extends AnAction {
     @Override
     public void update(@NotNull AnActionEvent e) {
         Project project = e.getProject();
-        e.getPresentation().setEnabledAndVisible(project != null);
+        boolean supported = project != null && hasCommitContext(e.getDataContext());
+        e.getPresentation().setEnabledAndVisible(supported || (project != null && isGenerating));
         e.getPresentation().setIcon(IconLoader.getIcon(
                 isGenerating ? "/icons/aiCommitStop.svg" : "/icons/aiCommit.svg",
                 GenerateCommitMessageAction.class));

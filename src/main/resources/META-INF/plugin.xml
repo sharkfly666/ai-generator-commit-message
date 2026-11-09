@@ -29,6 +29,13 @@
     ]]></description>
 
     <change-notes><![CDATA[
+    <h2>1.2.1</h2>
+    <ul>
+        <li>Extend compatibility to IntelliJ IDEA 2026.3 (build 263.*)</li>
+        <li>Build against IntelliJ IDEA 2026.3 and verify against 2026.1, 2026.2, and 2026.3</li>
+        <li>Fix commit message generation in editors without a legacy check-in panel</li>
+        <li>Hide the generator in message-only dialogs without changes to analyze</li>
+    </ul>
     <h2>1.2.0</h2>
     <ul>
         <li>Add HTTP proxy configuration in Settings (enable, host, port)</li>
@@ -49,6 +56,7 @@
     <!-- Product and plugin compatibility requirements -->
     <depends>com.intellij.modules.platform</depends>
     <depends>com.intellij.modules.vcs</depends>
+    <depends optional="true" config-file="vcs-platform.xml">com.intellij.platform.vcs</depends>
     <!-- Removed Git4Idea dependency - plugin now works with any VCS (Git, SVN, Mercurial, etc.) -->
 
     <extensions defaultExtensionNs="com.intellij">

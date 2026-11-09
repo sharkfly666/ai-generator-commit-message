@@ -20,9 +20,12 @@ dependencies {
     implementation("com.google.code.gson:gson:2.10.1")
 
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher:1.10.2")
 
     intellijPlatform {
         create(IntelliJPlatformType.IntellijIdea, providers.gradleProperty("platformVersion").get())
+        bundledPlugin("com.intellij.platform.vcs")
+        bundledModule("intellij.platform.vcs.core")
         pluginVerifier()
         zipSigner()
     }

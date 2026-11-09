@@ -85,7 +85,7 @@ jobs:
 
             ### Compatibility
             - Minimum IDE: IntelliJ IDEA 2025.3
-            - Verified target line: IntelliJ IDEA 2026.2
+            - Verified target line: IntelliJ IDEA 2026.3
             
             ### Plugin File
             - `${{ steps.plugin.outputs.name }}`
