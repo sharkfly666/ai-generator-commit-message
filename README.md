@@ -28,6 +28,22 @@ An IntelliJ IDEA plugin that automatically generates professional commit message
 
 ### 📦 Installation
 
+#### Plugin Repository (Automatic Update Checks)
+
+Add the following custom repository once in IntelliJ IDEA:
+
+1. Open `Settings/Preferences` → `Plugins`.
+2. Click the gear icon → `Manage Plugin Repositories...`.
+3. Click `+`, paste the URL below, and save:
+
+```text
+https://raw.githubusercontent.com/sharkfly666/ai-generator-commit-message/main/updatePlugins.xml
+```
+
+IDEA checks this repository according to your update settings and offers an `Update` button when a compatible newer version is available. Plugins with the same ID installed from disk can also receive updates this way. Updates are not installed silently. Access to `raw.githubusercontent.com` and GitHub Release downloads is required.
+
+See [custom repository setup](docs/CUSTOM_PLUGIN_REPOSITORY.md) for release automation details.
+
 #### From Source
 
 1. Clone the repository:
@@ -266,6 +282,22 @@ Issues and Pull Requests are welcome!
 - **使用 OpenAI**：有效的 OpenAI API 密钥
 
 ### 📦 安装
+
+#### 插件源配置（自动检查更新）
+
+在 IntelliJ IDEA 中配置一次自定义插件仓库：
+
+1. 打开 `Settings/Preferences` → `Plugins`。
+2. 点击齿轮图标 → `Manage Plugin Repositories...`。
+3. 点击 `+`，粘贴以下地址并保存：
+
+```text
+https://raw.githubusercontent.com/sharkfly666/ai-generator-commit-message/main/updatePlugins.xml
+```
+
+配置后，IDEA 会按更新设置检查新版本；有兼容的新版本时会提供 `Update` 按钮。从磁盘安装的同 ID 插件也可通过此源更新，不会自动无提示安装。需要能够访问 `raw.githubusercontent.com` 和 GitHub Release 下载地址。
+
+发布流程会自动维护更新索引，详见[自定义插件仓库说明](docs/CUSTOM_PLUGIN_REPOSITORY.md)。
 
 #### 从源码构建
 
