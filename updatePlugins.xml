@@ -1,0 +1,6 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<plugins>
+    <plugin id="com.github.jdami.ai-generator-commit-message" version="1.2.1" url="https://github.com/sharkfly666/ai-generator-commit-message/releases/download/v1.2.1/ai-generator-commit-message-1.2.1.zip">
+        <idea-version since-build="253" until-build="263.*" />
+    </plugin>
+</plugins>

@@ -17,27 +17,22 @@ permissions:
 jobs:
   release:
     runs-on: ubuntu-latest
-    
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-      
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '25'
           cache: 'gradle'
-      
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
-      
       - name: Build plugin
         run: ./gradlew buildPlugin --stacktrace
 
       - name: Verify plugin compatibility
         run: ./gradlew verifyPlugin --stacktrace
-      
       - name: Verify plugin build
         run: |
           echo "Checking build output..."
@@ -46,50 +41,82 @@ jobs:
             echo "Error: Plugin ZIP file not found!"
             exit 1
           fi
-      
       - name: Get version
         id: version
+        env:
+          RELEASE_INPUT_VERSION: ${{ inputs.version }}
         run: |
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
-            echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+            echo "version=$RELEASE_INPUT_VERSION" >> "$GITHUB_OUTPUT"
           else
-            echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+            echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
           fi
-      
       - name: Get plugin filename
         id: plugin
         run: |
           PLUGIN_FILE=$(ls build/distributions/*.zip | head -n 1)
           echo "file=$PLUGIN_FILE" >> $GITHUB_OUTPUT
           echo "name=$(basename $PLUGIN_FILE)" >> $GITHUB_OUTPUT
-      
+
+      - name: Test update repository generator
+        run: python3 -m unittest discover -s scripts -p "test_*.py"
+
+      - name: Generate update repository index
+        env:
+          RELEASE_TAG: v${{ steps.version.outputs.version }}
+          PLUGIN_FILE: ${{ steps.plugin.outputs.file }}
+        run: |
+          python3 scripts/generate_update_plugins.py \
+            "$PLUGIN_FILE" "$GITHUB_REPOSITORY" "$RELEASE_TAG" \
+            "$RUNNER_TEMP/updatePlugins.xml"
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.version.outputs.version }}
           name: Release ${{ steps.version.outputs.version }}
           files: ${{ steps.plugin.outputs.file }}
           body: |
             ## AI Commit Message Generator v${{ steps.version.outputs.version }}
-            
             ### Installation
             1. Download the plugin ZIP file below
-            2. In IntelliJ IDEA, go to Settings → Plugins → ⚙️ → Install Plugin from Disk
+            2. Open Settings → Plugins → ⚙️ → Install Plugin from Disk
             3. Select the downloaded ZIP file
             4. Restart IntelliJ IDEA
-            
             ### Features
-            - ✅ VCS-agnostic: Works with Git, SVN, Mercurial, Perforce, and any VCS
+            - ✅ VCS-agnostic: Git, SVN, Mercurial, Perforce, and more
             - ✅ Cross-platform: Windows, macOS, Linux
             - ✅ Multiple AI providers: Ollama, OpenAI, OpenRouter
 
             ### Compatibility
             - Minimum IDE: IntelliJ IDEA 2025.3
             - Verified target line: IntelliJ IDEA 2026.3
-            
             ### Plugin File
             - `${{ steps.plugin.outputs.name }}`
           draft: false
           prerelease: false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout default branch for update index
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: update-repository
+
+      - name: Publish update repository index
+        working-directory: update-repository
+        env:
+          RELEASE_VERSION: ${{ steps.version.outputs.version }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          cp "$RUNNER_TEMP/updatePlugins.xml" updatePlugins.xml
+          git add updatePlugins.xml
+          if git diff --cached --quiet; then
+            echo "Update repository index is already current"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email \
+            "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: update plugin repository to v$RELEASE_VERSION"
+          git push origin "HEAD:$DEFAULT_BRANCH"
